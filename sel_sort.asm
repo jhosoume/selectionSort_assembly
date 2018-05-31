@@ -55,7 +55,7 @@ setLoopRead:
         syscall
 	
 loopRead:
-	ble $s2, $zero, setLoopPrint
+	ble $s2, $zero, sort
         # Leitura do numero
         li $v0, 5
         syscall
@@ -63,7 +63,17 @@ loopRead:
         addiu $t0, $t0, 4
         addi $s2, $s2, -1
         j loopRead
-        
+
+sort:
+	la $a0, newline
+	li $v0, 4
+	syscall
+	
+	add $a0, $s0, $zero
+	li $a1, 0
+	add $a2, $s1, $zero
+	jal sel_sort
+
 setLoopPrint:
 	# Loop de leitura dos numeros do vetor
 	# size counter => $s2
@@ -77,7 +87,7 @@ setLoopPrint:
 	
 loopPrint:
         # Impressao de numero
-        bge $s2, $s1, encontraMin
+        bge $s2, $s1, end
         lw $a0, ($t0)
         li $v0, 1
         syscall
@@ -92,25 +102,8 @@ loopPrint:
         addi $s2, $s2, 1
         j loopPrint
         
-encontraMin:
-	la $a0, newline
-	li $v0, 4
-	syscall
+
 	
-	la $a0, show_min
-	li $v0, 4
-	syscall
-	
-	add $a0, $s0, $zero
-	li $a1, 0
-	add $a2, $s1, $zero
-	jal find_min
-	
-	add $a0, $v0, $zero
-        li $v0, 1
-        syscall
-	
-        
 	# Encerrando o programa
 end:
 	li $v0, 10                                  # Indica no registrador $v0 o modo de encerrar execução do programa
@@ -127,13 +120,16 @@ swap:
 	jr $ra
 	
 # $a0 = array, $a1 = start_indx, $a2 = size
+# $v0 = array[indx] do menor (ponteiro)
 find_min:
-	# $t9 = indx, $t8 = array[indx] (value), $t7 = size, $t6 = array[indx] (pointer), $v0 = minimum value
+	# $t9 = indx, $t8 = array[indx] (value), $t7 = size, $t6 = array[indx] (pointer), $v0 = minimum value (pointer), $t5 = min (value)
 	add $t9, $a1, $zero
 	add $t7, $a2, $zero
-	add $t6, $a0, $t9
+	sll $t5, $a1, 2 # numero de bytes em $a0, multiplica por 4
+	add $t6, $a0, $t5
 	lw $t8, ($t6)
-	add $v0, $t8, $zero
+	add $v0, $t6, $zero
+	lw $t5, ($v0)
 	
 	# start at indx + 1
 	addi $t9, $t9, 1
@@ -142,8 +138,9 @@ find_min:
 loopMin:
         bge $t9, $t7, endLoopMin
         lw $t8, ($t6)
-	bge $t8, $v0, skipEquals
-	add $v0, $t8, $zero
+	bge $t8, $t5, skipEquals
+	add $v0, $t6, $zero
+	lw $t5, ($v0)
 skipEquals:
         # Incremento do contador
 	addi $t9, $t9, 1
@@ -152,3 +149,30 @@ skipEquals:
         
 endLoopMin:
 	jr $ra
+	
+# $a0 = array, $a2 = size
+sel_sort:
+	# $t0 = indx, $t1 = min, $t2 = end loop, $t3 = array[indx] pointer, $s7 = array, $s6 = size
+	add $s6, $a2, $zero
+	add $s7, $a0, $zero
+	addi $t2, $a2, -1
+	add $t0, $zero, $zero
+	add $t3, $a0, $zero
+
+loopSort:
+	bge $t0, $t2, endLoopSort
+	# Encontra min
+	add $a0, $s7, $zero
+	add $a1, $t0, $zero
+	add $a2, $s6, $zero
+	jal find_min
+	add $a0, $v0, $zero
+	add $a1, $t3 , $zero
+	jal swap
+	# Incremento
+	addi $t0, $t0, 1
+	addiu $t3, $t3, 4
+	j loopSort
+
+endLoopSort:
+	j setLoopPrint
