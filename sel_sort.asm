@@ -13,6 +13,7 @@
 	print: .asciiz "O vetor eh: "
 	space: .asciiz " "
 	newline: .asciiz "\n"
+	show_min: .asciiz "O minimo encontrado foi: "
 	
 
 # Indica que as instruções vem a seguir
@@ -44,7 +45,7 @@ main:
 setLoopRead:
 	# Loop de leitura dos numeros do vetor
 	# size counter => $s2
-	# array[indx]  => $t0
+	# array        => $t0
 	add $s2, $s1, $zero
 	add $t0, $s0, $zero
 	
@@ -66,7 +67,7 @@ loopRead:
 setLoopPrint:
 	# Loop de leitura dos numeros do vetor
 	# size counter => $s2
-	# array[indx]  => $t0
+	# array[indx]  => $t0 (pointer)
 	li $s2, 0
 	add $t0, $s0, $zero
 	
@@ -76,7 +77,7 @@ setLoopPrint:
 	
 loopPrint:
         # Impressao de numero
-        bge $s2, $s1, end
+        bge $s2, $s1, encontraMin
         lw $a0, ($t0)
         li $v0, 1
         syscall
@@ -91,19 +92,63 @@ loopPrint:
         addi $s2, $s2, 1
         j loopPrint
         
+encontraMin:
+	la $a0, newline
+	li $v0, 4
+	syscall
+	
+	la $a0, show_min
+	li $v0, 4
+	syscall
+	
+	add $a0, $s0, $zero
+	li $a1, 0
+	add $a2, $s1, $zero
+	jal find_min
+	
+	add $a0, $v0, $zero
+        li $v0, 1
+        syscall
+	
+        
 	# Encerrando o programa
 end:
 	li $v0, 10                                  # Indica no registrador $v0 o modo de encerrar execução do programa
 	syscall		
 
-# $a0 = v1, $a1 = v2, both are pointers
+# $a0 = a, $a1 = b, both are pointers
+# $v0 = b, $v1 = a
+# Com efeito colateral
 swap:
-	lw $t3, ($a0)
-	lw $t4, ($a1)
-	sw $t4, ($a0)
-	sw $t3, ($a1)
+	lw $t8, ($a0)
+	lw $t9, ($a1)
+	sw $t8, ($a1)
+	sw $t9, ($a0)
+	jr $ra
 	
-
-
-# $a0 = array_pointer, $as1 = size
-# getNums:
+# $a0 = array, $a1 = start_indx, $a2 = size
+find_min:
+	# $t9 = indx, $t8 = array[indx] (value), $t7 = size, $t6 = array[indx] (pointer), $v0 = minimum value
+	add $t9, $a1, $zero
+	add $t7, $a2, $zero
+	add $t6, $a0, $t9
+	lw $t8, ($t6)
+	add $v0, $t8, $zero
+	
+	# start at indx + 1
+	addi $t9, $t9, 1
+	addiu $t6, $t6, 4
+	
+loopMin:
+        bge $t9, $t7, endLoopMin
+        lw $t8, ($t6)
+	bge $t8, $v0, skipEquals
+	add $v0, $t8, $zero
+skipEquals:
+        # Incremento do contador
+	addi $t9, $t9, 1
+	addiu $t6, $t6, 4
+        j loopMin
+        
+endLoopMin:
+	jr $ra
